@@ -153,6 +153,49 @@ import "../styles/global.css";
           : `${base} teams`;
       }
 
+      function cleanFragment(value, fallback) {
+        return phrase(value, fallback)
+          .replace(/^(i|we)\s+(helped|help|did|created|made|worked on)\s+/i, "")
+          .replace(/\.$/, "")
+          .trim();
+      }
+
+      function naturalOutcome(value, fallback) {
+        let fragment = cleanFragment(value, fallback).toLowerCase();
+        const verbFixes = [
+          ["increased", "increase"],
+          ["improved", "improve"],
+          ["clarified", "clarify"],
+          ["launched", "launch"],
+          ["grew", "grow"],
+          ["built", "build"],
+          ["shipped", "ship"],
+          ["created", "create"],
+          ["generated", "generate"],
+          ["organized", "organize"],
+          ["reduced", "reduce"]
+        ];
+        for (const [past, present] of verbFixes) {
+          if (fragment.startsWith(`${past} `)) fragment = fragment.replace(past, present);
+        }
+        if (/^(increase|decrease|launch|clarify|improve|grow|build|ship|turn|move|find|make|create)\b/.test(fragment)) {
+          return fragment;
+        }
+        return `improve ${fragment}`;
+      }
+
+      function naturalProblem(value, fallback) {
+        const fragment = cleanFragment(value, fallback).toLowerCase();
+        if (/^(with|around|on)\b/.test(fragment)) return fragment.replace(/^(with|around|on)\s+/i, "");
+        return fragment;
+      }
+
+      function scoreNote(label, value) {
+        if (label === "Legible") return `${value}% - clear enough for a stranger to understand quickly`;
+        if (label === "Compelling") return `${value}% - connected to a problem people are likely to care about`;
+        return `${value}% - anchored in experience, interests, or proof that can make the lane feel specific`;
+      }
+
       function scoreLane(lane, data) {
         const haystack = words(`${data.roles} ${data.industries} ${data.audiences} ${data.wins} ${data.asks} ${data.curiosity} ${data.suspect}`);
         const laneWords = words(`${lane.role} ${lane.audience} ${lane.problem} ${lane.outcome}`);
@@ -177,44 +220,55 @@ import "../styles/global.css";
         };
         const tactics = selectedTactics();
         const baseAudience = audienceLabel(data.industries || data.audiences || data.curiosity, path === "job" ? "growing marketing teams" : "founder-led businesses");
-        const proof = phrase(data.wins || data.asks, "make marketing easier to understand and act on").replace(/\.$/, "");
+        const proof = naturalOutcome(data.wins || data.asks, "make marketing easier to understand and act on");
         const seeds = tactics.length ? tactics : ["content", "web", "email"];
         const lanes = seeds.slice(0, 4).map((key) => {
           const [role, problem, outcome] = tacticMap[key];
+          const naturalOffer = path === "job"
+            ? `Position yourself as a ${role} for ${baseAudience}, with proof that you can ${proof}.`
+            : `Offer a focused ${problem} sprint for ${baseAudience} that helps them ${outcome}.`;
           return {
             role,
             audience: baseAudience,
             problem,
             outcome,
             statement: path === "job"
-              ? `I am a ${role} for ${baseAudience} that need to ${outcome}.`
+              ? `A ${role} for ${baseAudience} that need to ${outcome}.`
               : `I help ${baseAudience} with ${problem} so they can ${outcome}.`,
-            asset: path === "job"
-              ? `LinkedIn headline: ${role} for ${baseAudience} | ${proof}`
-              : `Starter offer: a 5-day ${problem} sprint for ${baseAudience}`
+            asset: naturalOffer,
+            nextStep: path === "job"
+              ? `Turn this into a LinkedIn headline, About opener, target role list, and case study angle.`
+              : `Turn this into a simple paid offer, proof asset, first DM, and 10 target buyers.`
           };
         });
 
         if (data.suspect) {
+          const suspectedProblem = naturalProblem(data.asks || data.curiosity, "a clear marketing bottleneck");
           lanes.unshift({
             role: path === "job" ? data.suspect : "specialist",
             audience: baseAudience,
-            problem: phrase(data.asks || data.curiosity, "a clear marketing bottleneck"),
+            problem: suspectedProblem,
             outcome: proof,
             statement: path === "job"
-              ? `I am targeting ${data.suspect} roles where I can help ${baseAudience} ${proof.charAt(0).toLowerCase() + proof.slice(1)}.`
-              : `I help ${baseAudience} ${proof} without making marketing feel heavier.`,
-            asset: path === "job" ? `Target role angle: ${data.suspect} with proof around ${proof}` : `Outreach angle: I noticed one fix that could help you ${proof}.`
+              ? `Target ${data.suspect} roles where ${baseAudience} need someone who can ${proof}.`
+              : `Help ${baseAudience} ${proof} without making marketing feel heavier.`,
+            asset: path === "job"
+              ? `Your strongest angle is not just the title. It is the overlap between ${data.suspect}, ${baseAudience}, and your proof around ${proof}.`
+              : `Your starter offer should make the first step feel concrete: diagnose ${suspectedProblem}, make one useful improvement, and show the buyer what to do next.`,
+            nextStep: path === "job"
+              ? `Turn this into three target-role versions and a sharper proof story.`
+              : `Turn this into three offer names, a scope, and a first outreach message.`
           });
         }
 
-        return lanes.slice(0, 5).map((lane) => ({ ...lane, score: scoreLane(lane, data) }));
+        return lanes.slice(0, 5).map((lane) => ({ ...lane, score: scoreLane(lane, data), data, path }));
       }
 
       function renderResults() {
         const lanes = buildLanes();
         results.innerHTML = lanes.map((lane, index) => {
           const total = Math.round((lane.score.legible + lane.score.compelling + lane.score.differentiated) / 3);
+          const prompt = buildPrompt(lane, total);
           return `
             <article class="lane-card">
               <div class="lane-card__head">
@@ -223,12 +277,13 @@ import "../styles/global.css";
               </div>
               <h3>${lane.statement}</h3>
               <p>${lane.asset}</p>
+              <p class="lane-card__next">${lane.nextStep}</p>
               <div class="meters">
-                ${meter("Legible", lane.score.legible)}
-                ${meter("Compelling", lane.score.compelling)}
-                ${meter("Differentiated", lane.score.differentiated)}
+                ${meter("Legible", lane.score.legible, scoreNote("Legible", lane.score.legible))}
+                ${meter("Compelling", lane.score.compelling, scoreNote("Compelling", lane.score.compelling))}
+                ${meter("Differentiated", lane.score.differentiated, scoreNote("Differentiated", lane.score.differentiated))}
               </div>
-              <button type="button" class="copy-btn" data-copy="${encodeURIComponent(`${lane.statement}\n\n${lane.asset}`)}">Copy this lane</button>
+              <button type="button" class="copy-btn" data-copy="${encodeURIComponent(prompt)}">Copy LLM prompt</button>
             </article>
           `;
         }).join("");
@@ -240,8 +295,51 @@ import "../styles/global.css";
         });
       }
 
-      function meter(label, value) {
-        return `<div class="meter"><span>${label}</span><b style="width:${value}%"></b></div>`;
+      function meter(label, value, note) {
+        return `<div class="meter"><span>${label}</span><em>${note}</em><b style="width:${value}%"></b></div>`;
+      }
+
+      function buildPrompt(lane, total) {
+        const data = lane.data;
+        return `Act as a practical positioning strategist for an early-career marketer.
+
+I used a tool called Find Your Marketing Lane. Help me expand and sharpen this lane so I can decide whether to use it for my ${lane.path === "job" ? "job search" : "first freelance offer"}.
+
+Recommended lane:
+${lane.statement}
+
+Natural-language angle:
+${lane.asset}
+
+Suggested next step:
+${lane.nextStep}
+
+Scores:
+- Overall fit: ${total}%
+- Legible: ${scoreNote("Legible", lane.score.legible)}
+- Compelling: ${scoreNote("Compelling", lane.score.compelling)}
+- Differentiated: ${scoreNote("Differentiated", lane.score.differentiated)}
+
+My raw inputs:
+- Roles or responsibilities: ${data.roles || "Not provided"}
+- Industries or company types: ${data.industries || "Not provided"}
+- Audiences I understand: ${data.audiences || "Not provided"}
+- Best outcomes I helped create: ${data.wins || "Not provided"}
+- Problems people ask me to help with: ${data.asks || "Not provided"}
+- Companies, categories, or problems I am curious about: ${data.curiosity || "Not provided"}
+- Target role or buyer I suspect: ${data.suspect || "Not provided"}
+- Tactics I selected: ${selectedTactics().join(", ") || "Not provided"}
+- Work I want less of: ${field("avoid") || "Not provided"}
+
+Please help me:
+1. Rewrite this lane in clearer, more natural language.
+2. Give me 5 sharper niche options that are more specific but not too narrow.
+3. Explain which option is most legible, most compelling, and most differentiated.
+4. Suggest the first proof asset or case study I should build.
+5. Suggest a LinkedIn headline and About opener.
+6. If this is a freelance lane, suggest a simple starter offer with scope, promise, and first outreach message.
+7. If this is a job-search lane, suggest target role titles, company types, and a first networking message.
+8. Ask me 5 follow-up questions that would help you refine the lane further.`;
       }
 
       function showStep(next) {

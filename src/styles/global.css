@@ -350,9 +350,14 @@ textarea:focus,
 
 .lane-card:first-child p { color: rgba(255, 255, 255, 0.74); }
 
+.lane-card__next {
+  margin-top: 10px;
+  font-size: 15px;
+}
+
 .meters {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin: 20px 0;
 }
 
@@ -364,6 +369,17 @@ textarea:focus,
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+
+.meter em {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-style: normal;
+  line-height: 1.32;
+}
+
+.lane-card:first-child .meter em { color: rgba(255, 255, 255, 0.68); }
 
 .meter {
   overflow: hidden;
