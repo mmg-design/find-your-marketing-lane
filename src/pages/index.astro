@@ -1,0 +1,273 @@
+---
+import "../styles/global.css";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Reverse-engineer your strongest marketing lane from your experience, proof, interests, and target outcome." />
+    <title>Find Your Marketing Lane</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <img src="/images/columbus-marketing-logo.svg" alt="Columbus Marketing" />
+        <span>Positioning Sprint</span>
+      </header>
+
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Find Your Marketing Lane</p>
+          <h1>Turn your messy experience into a clear marketing direction.</h1>
+          <p class="lead">
+            You do not need to know your niche yet. This tool reverse-engineers it from your work history, proof, interests, and the outcome you want next.
+          </p>
+        </div>
+        <aside class="premise-card" aria-label="What this tool optimizes for">
+          <div><strong>Legible</strong><span>People understand what you do.</span></div>
+          <div><strong>Compelling</strong><span>The market cares enough to act.</span></div>
+          <div><strong>Differentiated</strong><span>Your background gives you an angle.</span></div>
+        </aside>
+      </section>
+
+      <section class="app" aria-label="Marketing lane finder">
+        <div class="progress">
+          <span id="stepLabel">Step 1 of 6</span>
+          <div><i id="progressBar"></i></div>
+        </div>
+
+        <form id="laneForm">
+          <section class="step is-active" data-step="0">
+            <h2>What are you trying to land?</h2>
+            <p>Choose the outcome. We will adapt the recommendations from there.</p>
+            <div class="choice-grid">
+              <label class="choice">
+                <input type="radio" name="path" value="job" checked />
+                <span>Marketing job offer</span>
+                <small>Target role, LinkedIn positioning, interview angle.</small>
+              </label>
+              <label class="choice">
+                <input type="radio" name="path" value="freelance" />
+                <span>First freelance customer</span>
+                <small>Buyer, problem, offer, outreach angle.</small>
+              </label>
+            </div>
+          </section>
+
+          <section class="step" data-step="1">
+            <h2>What have you already been around?</h2>
+            <p>Do not polish this. List the roles, industries, teams, and audiences you have touched.</p>
+            <label>Roles or responsibilities<textarea name="roles" placeholder="Content coordinator, email campaigns, marketing ops, social media, sales enablement..."></textarea></label>
+            <label>Industries or company types<textarea name="industries" placeholder="Healthcare, SaaS, nonprofits, local services, education, agencies..."></textarea></label>
+            <label>Audiences you understand<textarea name="audiences" placeholder="Founders, sales teams, patients, students, HR leaders, small business owners..."></textarea></label>
+          </section>
+
+          <section class="step" data-step="2">
+            <h2>Where is there proof?</h2>
+            <p>Small proof counts. We are looking for before-and-after stories.</p>
+            <label>Best outcomes you helped create<textarea name="wins" placeholder="Increased replies, launched a campaign, improved onboarding, clarified messaging, grew traffic..."></textarea></label>
+            <label>Problems people ask you to help with<textarea name="asks" placeholder="Writing, organizing campaigns, making LinkedIn better, finding insights, building pages..."></textarea></label>
+          </section>
+
+          <section class="step" data-step="3">
+            <h2>What work gives you energy?</h2>
+            <p>Your lane has to be repeatable. Pick the work you can keep doing.</p>
+            <fieldset class="tag-grid" id="tactics">
+              <label><input type="checkbox" value="content" /> Content</label>
+              <label><input type="checkbox" value="email" /> Email</label>
+              <label><input type="checkbox" value="analytics" /> Analytics</label>
+              <label><input type="checkbox" value="brand" /> Brand</label>
+              <label><input type="checkbox" value="paid" /> Paid ads</label>
+              <label><input type="checkbox" value="web" /> Websites</label>
+              <label><input type="checkbox" value="community" /> Community</label>
+              <label><input type="checkbox" value="ops" /> Marketing ops</label>
+            </fieldset>
+            <label>Work you want less of<textarea name="avoid" placeholder="Anything that drains you or feels like the wrong lane."></textarea></label>
+          </section>
+
+          <section class="step" data-step="4">
+            <h2>What sounds interesting enough to explore?</h2>
+            <p>You are reacting now, not inventing from scratch.</p>
+            <label>Companies, categories, or problems you are curious about<textarea name="curiosity" placeholder="Founder-led companies, underdog nonprofits, healthcare access, boring B2B, local businesses..."></textarea></label>
+            <label>Optional: target role or buyer you already suspect<textarea name="suspect" placeholder="Lifecycle marketer, content strategist, clinic owner, B2B founder..."></textarea></label>
+          </section>
+
+          <section class="step" data-step="5">
+            <h2>Your lane recommendations</h2>
+            <p>These are starting points. Pick the one that feels both credible and alive.</p>
+            <div id="results" class="results" aria-live="polite"></div>
+          </section>
+
+          <div class="actions">
+            <button type="button" id="backBtn" class="btn btn-ghost">Back</button>
+            <button type="button" id="nextBtn" class="btn btn-primary">Next</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script>
+      const steps = [...document.querySelectorAll(".step")];
+      const nextBtn = document.querySelector("#nextBtn");
+      const backBtn = document.querySelector("#backBtn");
+      const stepLabel = document.querySelector("#stepLabel");
+      const progressBar = document.querySelector("#progressBar");
+      const results = document.querySelector("#results");
+      let current = 0;
+
+      const tacticMap = {
+        content: ["content strategist", "founder-led content", "turn expertise into useful posts"],
+        email: ["lifecycle marketer", "email onboarding", "move people from interest to action"],
+        analytics: ["growth analyst", "measurement and reporting", "find what is actually working"],
+        brand: ["brand marketer", "positioning and messaging", "make the value easier to understand"],
+        paid: ["paid acquisition marketer", "campaign testing", "turn spend into learning"],
+        web: ["conversion marketer", "landing pages", "turn traffic into leads"],
+        community: ["community marketer", "events and engagement", "create useful connection"],
+        ops: ["marketing ops specialist", "systems and workflows", "make marketing repeatable"]
+      };
+
+      function words(value) {
+        return (value || "")
+          .toLowerCase()
+          .split(/[^a-z0-9]+/)
+          .filter(Boolean)
+          .filter((w) => w.length > 2);
+      }
+
+      function field(name) {
+        return new FormData(document.querySelector("#laneForm")).get(name)?.toString().trim() || "";
+      }
+
+      function selectedTactics() {
+        return [...document.querySelectorAll("#tactics input:checked")].map((input) => input.value);
+      }
+
+      function phrase(source, fallback) {
+        const chunks = source.split(/[,.;\n]/).map((x) => x.trim()).filter(Boolean);
+        return chunks[0] || fallback;
+      }
+
+      function audienceLabel(source, fallback) {
+        const base = phrase(source, fallback);
+        return /\b(teams|companies|businesses|owners|founders|leaders|marketers|clinics|agencies)\b/i.test(base)
+          ? base
+          : `${base} teams`;
+      }
+
+      function scoreLane(lane, data) {
+        const haystack = words(`${data.roles} ${data.industries} ${data.audiences} ${data.wins} ${data.asks} ${data.curiosity} ${data.suspect}`);
+        const laneWords = words(`${lane.role} ${lane.audience} ${lane.problem} ${lane.outcome}`);
+        const overlap = laneWords.filter((w) => haystack.includes(w)).length;
+        return {
+          legible: Math.min(96, 66 + overlap * 5 + (data.wins ? 8 : 0)),
+          compelling: Math.min(96, 62 + (data.asks ? 12 : 0) + (data.curiosity ? 8 : 0)),
+          differentiated: Math.min(96, 58 + (data.industries ? 12 : 0) + (data.audiences ? 8 : 0) + selectedTactics().length * 2)
+        };
+      }
+
+      function buildLanes() {
+        const path = field("path");
+        const data = {
+          roles: field("roles"),
+          industries: field("industries"),
+          audiences: field("audiences"),
+          wins: field("wins"),
+          asks: field("asks"),
+          curiosity: field("curiosity"),
+          suspect: field("suspect")
+        };
+        const tactics = selectedTactics();
+        const baseAudience = audienceLabel(data.industries || data.audiences || data.curiosity, path === "job" ? "growing marketing teams" : "founder-led businesses");
+        const proof = phrase(data.wins || data.asks, "make marketing easier to understand and act on").replace(/\.$/, "");
+        const seeds = tactics.length ? tactics : ["content", "web", "email"];
+        const lanes = seeds.slice(0, 4).map((key) => {
+          const [role, problem, outcome] = tacticMap[key];
+          return {
+            role,
+            audience: baseAudience,
+            problem,
+            outcome,
+            statement: path === "job"
+              ? `I am a ${role} for ${baseAudience} that need to ${outcome}.`
+              : `I help ${baseAudience} with ${problem} so they can ${outcome}.`,
+            asset: path === "job"
+              ? `LinkedIn headline: ${role} for ${baseAudience} | ${proof}`
+              : `Starter offer: a 5-day ${problem} sprint for ${baseAudience}`
+          };
+        });
+
+        if (data.suspect) {
+          lanes.unshift({
+            role: path === "job" ? data.suspect : "specialist",
+            audience: baseAudience,
+            problem: phrase(data.asks || data.curiosity, "a clear marketing bottleneck"),
+            outcome: proof,
+            statement: path === "job"
+              ? `I am targeting ${data.suspect} roles where I can help ${baseAudience} ${proof.charAt(0).toLowerCase() + proof.slice(1)}.`
+              : `I help ${baseAudience} ${proof} without making marketing feel heavier.`,
+            asset: path === "job" ? `Target role angle: ${data.suspect} with proof around ${proof}` : `Outreach angle: I noticed one fix that could help you ${proof}.`
+          });
+        }
+
+        return lanes.slice(0, 5).map((lane) => ({ ...lane, score: scoreLane(lane, data) }));
+      }
+
+      function renderResults() {
+        const lanes = buildLanes();
+        results.innerHTML = lanes.map((lane, index) => {
+          const total = Math.round((lane.score.legible + lane.score.compelling + lane.score.differentiated) / 3);
+          return `
+            <article class="lane-card">
+              <div class="lane-card__head">
+                <span>Lane ${index + 1}</span>
+                <strong>${total}% fit</strong>
+              </div>
+              <h3>${lane.statement}</h3>
+              <p>${lane.asset}</p>
+              <div class="meters">
+                ${meter("Legible", lane.score.legible)}
+                ${meter("Compelling", lane.score.compelling)}
+                ${meter("Differentiated", lane.score.differentiated)}
+              </div>
+              <button type="button" class="copy-btn" data-copy="${encodeURIComponent(`${lane.statement}\n\n${lane.asset}`)}">Copy this lane</button>
+            </article>
+          `;
+        }).join("");
+        document.querySelectorAll(".copy-btn").forEach((button) => {
+          button.addEventListener("click", async () => {
+            await navigator.clipboard.writeText(decodeURIComponent(button.dataset.copy));
+            button.textContent = "Copied";
+          });
+        });
+      }
+
+      function meter(label, value) {
+        return `<div class="meter"><span>${label}</span><b style="width:${value}%"></b></div>`;
+      }
+
+      function showStep(next) {
+        current = Math.max(0, Math.min(steps.length - 1, next));
+        steps.forEach((step, index) => step.classList.toggle("is-active", index === current));
+        backBtn.style.visibility = current === 0 ? "hidden" : "visible";
+        nextBtn.textContent = current === steps.length - 2 ? "Generate lanes" : current === steps.length - 1 ? "Start over" : "Next";
+        stepLabel.textContent = `Step ${current + 1} of ${steps.length}`;
+        progressBar.style.width = `${((current + 1) / steps.length) * 100}%`;
+        if (current === steps.length - 1) renderResults();
+      }
+
+      nextBtn.addEventListener("click", () => {
+        if (current === steps.length - 1) {
+          document.querySelector("#laneForm").reset();
+          showStep(0);
+          return;
+        }
+        showStep(current + 1);
+      });
+      backBtn.addEventListener("click", () => showStep(current - 1));
+      showStep(0);
+    </script>
+  </body>
+</html>
