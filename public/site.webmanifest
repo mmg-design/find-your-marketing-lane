@@ -1,0 +1,15 @@
+{
+  "name": "Columbus Marketing Jobs",
+  "short_name": "CMO Jobs",
+  "icons": [
+    {
+      "src": "/webclip.png",
+      "sizes": "386x386",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#ffffff",
+  "theme_color": "#1a1412"
+}
