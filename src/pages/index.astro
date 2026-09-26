@@ -240,6 +240,72 @@ import "../styles/global.css";
         };
       }
 
+      function opportunityStrategy(path, lane, data, tactics) {
+        const audience = lowerAudience(lane.audience);
+        const hasWarmSignals = Boolean(data.audiences || data.industries || data.suspect);
+        const proofAsset = tactics.includes("web") || tactics.includes("brand")
+          ? "a quick teardown or mini-audit"
+          : tactics.includes("content")
+            ? "a short point-of-view post or content sample"
+            : "a simple proof asset";
+
+        if (path === "freelance") {
+          if (tactics.includes("web") || tactics.includes("brand")) {
+            return {
+              title: "Best first-client path: mini-audit outreach",
+              why: `This lane is easiest to sell when the buyer can see the problem. Create ${proofAsset} for ${audience}, then send it as useful proof before asking for a call.`,
+              steps: [
+                `Build a list of 25 ${audience}.`,
+                `Record or write one specific audit showing what is unclear and what to fix first.`,
+                `Send 5 warm or lightly personalized messages per day with the audit as the value-first reason to reply.`
+              ]
+            };
+          }
+          if (hasWarmSignals) {
+            return {
+              title: "Best first-client path: warm referral ask",
+              why: `Your inputs show some existing context around ${audience}. Start with people who already trust you, then ask for introductions before doing colder outreach.`,
+              steps: [
+                "List 20 people who know your work or understand this market.",
+                `Ask who they know at ${audience} that might want help with ${lane.problem}.`,
+                "Follow up with a simple starter offer, not a vague request to network."
+              ]
+            };
+          }
+          return {
+            title: "Best first-client path: focused cold outreach",
+            why: `This lane needs signal. Use a narrow list, a concrete problem, and a small first offer instead of broad “marketing help.”`,
+            steps: [
+              `Find 50 ${audience} with visible signs of the problem.`,
+              `Send a short message naming one likely issue and offering ${proofAsset}.`,
+              "Track replies and refine the offer after every 10 messages."
+            ]
+          };
+        }
+
+        if (hasWarmSignals) {
+          return {
+            title: "Best job-search path: warm-intro target list",
+            why: `This lane is stronger if you turn your existing context into conversations. Do not start with job boards. Start with people adjacent to ${audience}.`,
+            steps: [
+              `Build a list of 30 companies or teams that look like ${audience}.`,
+              "Find the marketing lead, hiring manager, or mutual connection.",
+              `Ask for a 15-minute conversation about how they approach ${lane.problem}, then share your proof asset.`
+            ]
+          };
+        }
+
+        return {
+          title: "Best job-search path: proof-led hiring-manager outreach",
+          why: `If you do not have a warm path yet, lead with evidence. A small case study or teardown gives a hiring manager a reason to pay attention.`,
+          steps: [
+            `Create one proof asset tied to ${lane.problem}.`,
+            "Apply only after you have also found the likely hiring manager.",
+            "Send a short note with the proof asset and ask for feedback, not a job."
+          ]
+        };
+      }
+
       function buildLanes() {
         const path = field("path");
         const data = {
@@ -260,7 +326,7 @@ import "../styles/global.css";
           const naturalOffer = path === "job"
             ? `Position yourself as a ${role} for ${lowerAudience(baseAudience)}, with proof that you can ${proof}.`
             : `Offer a focused ${problem} sprint for ${lowerAudience(baseAudience)} that helps them ${outcome}.`;
-          return {
+          const lane = {
             role,
             audience: baseAudience,
             problem,
@@ -273,11 +339,12 @@ import "../styles/global.css";
               ? `Turn this into a LinkedIn headline, About opener, target role list, and case study angle.`
               : `Turn this into a simple paid offer, proof asset, first DM, and 10 target buyers.`
           };
+          return { ...lane, strategy: opportunityStrategy(path, lane, data, tactics) };
         });
 
         if (data.suspect) {
           const suspectedProblem = naturalProblem(data.asks || data.curiosity, "a clear marketing bottleneck");
-          lanes.unshift({
+          const suspectedLane = {
             role: path === "job" ? data.suspect : "specialist",
             audience: baseAudience,
             problem: suspectedProblem,
@@ -291,7 +358,8 @@ import "../styles/global.css";
             nextStep: path === "job"
               ? `Turn this into three target-role versions and a sharper proof story.`
               : `Turn this into three offer names, a scope, and a first outreach message.`
-          });
+          };
+          lanes.unshift({ ...suspectedLane, strategy: opportunityStrategy(path, suspectedLane, data, tactics) });
         }
 
         return lanes.slice(0, 5).map((lane) => ({ ...lane, score: scoreLane(lane, data), data, path }));
@@ -311,6 +379,7 @@ import "../styles/global.css";
               <h3>${lane.statement}</h3>
               <p>${lane.asset}</p>
               <p class="lane-card__next">${lane.nextStep}</p>
+              ${strategyBlock(lane.strategy)}
               <div class="meters">
                 ${meter("Legible", lane.score.legible, scoreNote("Legible", lane.score.legible))}
                 ${meter("Compelling", lane.score.compelling, scoreNote("Compelling", lane.score.compelling))}
@@ -332,6 +401,14 @@ import "../styles/global.css";
         return `<div class="meter"><div class="meter__copy"><span>${label}</span><em>${note}</em></div><div class="meter__track"><b style="width:${value}%"></b></div></div>`;
       }
 
+      function strategyBlock(strategy) {
+        return `<div class="strategy">
+          <strong>${strategy.title}</strong>
+          <p>${strategy.why}</p>
+          <ol>${strategy.steps.map((step) => `<li>${step}</li>`).join("")}</ol>
+        </div>`;
+      }
+
       function buildPrompt(lane, total) {
         const data = lane.data;
         return `Act as a practical positioning strategist for an early-career marketer.
@@ -346,6 +423,13 @@ ${lane.asset}
 
 Suggested next step:
 ${lane.nextStep}
+
+Recommended opportunity strategy:
+${lane.strategy.title}
+Why this strategy fits:
+${lane.strategy.why}
+First actions:
+${lane.strategy.steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}
 
 Scores:
 - Overall fit: ${total}%
@@ -371,8 +455,9 @@ Please help me:
 4. Suggest the first proof asset or case study I should build.
 5. Suggest a LinkedIn headline and About opener.
 6. If this is a freelance lane, suggest a simple starter offer with scope, promise, and first outreach message.
-7. If this is a job-search lane, suggest target role titles, company types, and a first networking message.
-8. Ask me 5 follow-up questions that would help you refine the lane further.`;
+7. Build on the recommended opportunity strategy and give me a 7-day action plan.
+8. If this is a job-search lane, suggest target role titles, company types, and a first networking message.
+9. Ask me 5 follow-up questions that would help you refine the lane further.`;
       }
 
       function showStep(next) {
