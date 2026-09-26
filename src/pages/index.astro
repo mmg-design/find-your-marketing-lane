@@ -14,7 +14,9 @@ import "../styles/global.css";
   <body>
     <main class="shell">
       <header class="topbar">
-        <img src="/images/columbus-marketing-logo.svg" alt="Columbus Marketing" />
+        <a class="logo-mark" href="/" aria-label="Find Your Marketing Lane">
+          <img src="/images/columbus-marketing-logo.svg" alt="Columbus Marketing" />
+        </a>
         <span>Positioning Sprint</span>
       </header>
 
@@ -26,11 +28,6 @@ import "../styles/global.css";
             You do not need to know your niche yet. This tool reverse-engineers it from your work history, proof, interests, and the outcome you want next.
           </p>
         </div>
-        <aside class="premise-card" aria-label="What this tool optimizes for">
-          <div><strong>Legible</strong><span>People understand what you do.</span></div>
-          <div><strong>Compelling</strong><span>The market cares enough to act.</span></div>
-          <div><strong>Differentiated</strong><span>Your background gives you an angle.</span></div>
-        </aside>
       </section>
 
       <section class="app" aria-label="Marketing lane finder">
@@ -42,7 +39,7 @@ import "../styles/global.css";
         <form id="laneForm">
           <section class="step is-active" data-step="0">
             <h2>What are you trying to land?</h2>
-            <p>Choose the outcome. We will adapt the recommendations from there.</p>
+            <p>Start with the outcome you want most. The next questions will pull a clear lane from your actual experience.</p>
             <div class="choice-grid">
               <label class="choice">
                 <input type="radio" name="path" value="job" checked />
