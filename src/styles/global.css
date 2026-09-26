@@ -357,8 +357,17 @@ textarea:focus,
 
 .meters {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   margin: 20px 0;
+}
+
+.meter {
+  display: grid;
+  gap: 7px;
+}
+
+.meter__copy {
+  min-width: 0;
 }
 
 .meter span {
@@ -381,17 +390,19 @@ textarea:focus,
 
 .lane-card:first-child .meter em { color: rgba(255, 255, 255, 0.68); }
 
-.meter {
+.meter__track {
+  position: relative;
   overflow: hidden;
   border-radius: 99px;
+  height: 10px;
   background: rgba(20, 18, 16, 0.08);
 }
 
-.lane-card:first-child .meter { background: rgba(255, 255, 255, 0.12); }
+.lane-card:first-child .meter__track { background: rgba(255, 255, 255, 0.12); }
 
-.meter b {
+.meter__track b {
   display: block;
-  height: 7px;
+  height: 100%;
   border-radius: inherit;
   background: var(--gold);
 }

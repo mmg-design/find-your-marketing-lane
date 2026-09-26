@@ -146,11 +146,44 @@ import "../styles/global.css";
         return chunks[0] || fallback;
       }
 
+      function cleanAudience(value) {
+        return (value || "")
+          .replace(/\b(i|we)\s+(worked with|work with|helped|help|served|marketed to|sold to|supported)\s+/gi, "")
+          .replace(/\b(my|our)\s+/gi, "")
+          .replace(/\b(in|at|for)\s+$/gi, "")
+          .replace(/\.$/, "")
+          .trim();
+      }
+
+      function audienceCandidates(source) {
+        return (source || "")
+          .split(/[,;\n]/)
+          .map((item) => cleanAudience(item))
+          .filter(Boolean)
+          .filter((item) => !/^(i|we)\b/i.test(item));
+      }
+
       function audienceLabel(source, fallback) {
-        const base = phrase(source, fallback);
+        const candidates = audienceCandidates(source);
+        const preferred = candidates.find((item) => /\b(teams|companies|businesses|owners|founders|leaders|marketers|clinics|agencies|startups|nonprofits|brands|creators)\b/i.test(item));
+        let base = preferred || candidates[0] || fallback;
+        base = base
+          .replace(/^(.+?)\s+marketers\s+in\s+B2B$/i, "B2B $1 marketers")
+          .replace(/^(.+?)\s+teams\s+in\s+B2B$/i, "B2B $1 teams")
+          .replace(/\s+/g, " ")
+          .trim();
         return /\b(teams|companies|businesses|owners|founders|leaders|marketers|clinics|agencies)\b/i.test(base)
           ? base
           : `${base} teams`;
+      }
+
+      function lowerAudience(value) {
+        return value
+          .replace(/\bB2B\b/gi, "__B2B__")
+          .replace(/\bSaaS\b/gi, "__SAAS__")
+          .toLowerCase()
+          .replace(/__b2b__/gi, "B2B")
+          .replace(/__saas__/gi, "SaaS");
       }
 
       function cleanFragment(value, fallback) {
@@ -219,22 +252,22 @@ import "../styles/global.css";
           suspect: field("suspect")
         };
         const tactics = selectedTactics();
-        const baseAudience = audienceLabel(data.industries || data.audiences || data.curiosity, path === "job" ? "growing marketing teams" : "founder-led businesses");
+        const baseAudience = audienceLabel(`${data.audiences}\n${data.industries}\n${data.curiosity}`, path === "job" ? "growing marketing teams" : "founder-led businesses");
         const proof = naturalOutcome(data.wins || data.asks, "make marketing easier to understand and act on");
         const seeds = tactics.length ? tactics : ["content", "web", "email"];
         const lanes = seeds.slice(0, 4).map((key) => {
           const [role, problem, outcome] = tacticMap[key];
           const naturalOffer = path === "job"
-            ? `Position yourself as a ${role} for ${baseAudience}, with proof that you can ${proof}.`
-            : `Offer a focused ${problem} sprint for ${baseAudience} that helps them ${outcome}.`;
+            ? `Position yourself as a ${role} for ${lowerAudience(baseAudience)}, with proof that you can ${proof}.`
+            : `Offer a focused ${problem} sprint for ${lowerAudience(baseAudience)} that helps them ${outcome}.`;
           return {
             role,
             audience: baseAudience,
             problem,
             outcome,
             statement: path === "job"
-              ? `A ${role} for ${baseAudience} that need to ${outcome}.`
-              : `I help ${baseAudience} with ${problem} so they can ${outcome}.`,
+              ? `A ${role} helping ${lowerAudience(baseAudience)} ${outcome}.`
+              : `Help ${lowerAudience(baseAudience)} with ${problem} so they can ${outcome}.`,
             asset: naturalOffer,
             nextStep: path === "job"
               ? `Turn this into a LinkedIn headline, About opener, target role list, and case study angle.`
@@ -250,10 +283,10 @@ import "../styles/global.css";
             problem: suspectedProblem,
             outcome: proof,
             statement: path === "job"
-              ? `Target ${data.suspect} roles where ${baseAudience} need someone who can ${proof}.`
-              : `Help ${baseAudience} ${proof} without making marketing feel heavier.`,
+              ? `Target ${data.suspect} roles where you can help ${lowerAudience(baseAudience)} ${proof}.`
+              : `Help ${lowerAudience(baseAudience)} ${proof} without making marketing feel heavier.`,
             asset: path === "job"
-              ? `Your strongest angle is not just the title. It is the overlap between ${data.suspect}, ${baseAudience}, and your proof around ${proof}.`
+              ? `Your strongest angle is not just the title. It is the overlap between ${data.suspect}, ${lowerAudience(baseAudience)}, and your proof around ${proof}.`
               : `Your starter offer should make the first step feel concrete: diagnose ${suspectedProblem}, make one useful improvement, and show the buyer what to do next.`,
             nextStep: path === "job"
               ? `Turn this into three target-role versions and a sharper proof story.`
@@ -296,7 +329,7 @@ import "../styles/global.css";
       }
 
       function meter(label, value, note) {
-        return `<div class="meter"><span>${label}</span><em>${note}</em><b style="width:${value}%"></b></div>`;
+        return `<div class="meter"><div class="meter__copy"><span>${label}</span><em>${note}</em></div><div class="meter__track"><b style="width:${value}%"></b></div></div>`;
       }
 
       function buildPrompt(lane, total) {
